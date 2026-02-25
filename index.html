@@ -3,69 +3,216 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Typing Speed Test</title>
+  <title>TypeForge — Typing Speed Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="text-center text-gray-400 text-sm mb-4">Created by Abhishek Choubey</div>
-  <div class="wrap" role="main">
-    <header>
-      <div>
-        <h1>Typing Speed Test</h1>
-        <div class="meta">Measure your WPM, accuracy, and CPM — Major Project</div>
+  <!-- Ambient bg particles -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- Caps Lock Warning -->
+  <div id="caps-warn" class="caps-warn hidden">⇪ CAPS LOCK IS ON</div>
+
+  <!-- Results Modal -->
+  <div id="results-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-badge">Test Complete</span>
+        <h2 id="modal-title">Results</h2>
       </div>
-      <div class="meta">Time: <span id="display-timer">00:00</span></div>
+      <div class="modal-stats">
+        <div class="modal-stat accent">
+          <div class="ms-label">Net WPM</div>
+          <div id="m-wpm" class="ms-val">0</div>
+        </div>
+        <div class="modal-stat">
+          <div class="ms-label">Raw WPM</div>
+          <div id="m-rawwpm" class="ms-val">0</div>
+        </div>
+        <div class="modal-stat success">
+          <div class="ms-label">Accuracy</div>
+          <div id="m-acc" class="ms-val">100%</div>
+        </div>
+        <div class="modal-stat">
+          <div class="ms-label">CPM</div>
+          <div id="m-cpm" class="ms-val">0</div>
+        </div>
+        <div class="modal-stat warn">
+          <div class="ms-label">Errors</div>
+          <div id="m-errors" class="ms-val">0</div>
+        </div>
+        <div class="modal-stat">
+          <div class="ms-label">Time</div>
+          <div id="m-time" class="ms-val">0s</div>
+        </div>
+      </div>
+      <div class="pb-row">
+        <span id="pb-label"></span>
+      </div>
+      <div class="modal-actions">
+        <button id="modal-retry" class="btn-primary">⟳ Retry</button>
+        <button id="modal-new" class="btn-ghost">New Passage</button>
+        <button id="modal-close" class="btn-ghost">✕ Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div class="app">
+    <!-- Header -->
+    <header class="site-header">
+      <div class="logo">
+        <span class="logo-icon">⌨</span>
+        <span class="logo-text">Type<strong>Forge</strong></span>
+      </div>
+      <div class="header-controls">
+        <div class="mode-pill" id="mode-display">
+          <span id="mode-label">Free</span>
+          <span class="timer-display" id="display-timer">00:00</span>
+        </div>
+        <button id="theme-toggle" class="icon-btn" title="Toggle theme">◑</button>
+        <button id="sound-toggle" class="icon-btn" title="Toggle sound">♪</button>
+      </div>
     </header>
 
-    <div class="grid">
-      <section class="card">
-        <div>
-          <div class="small">Test passage</div>
-          <div id="passage" class="passage" tabindex="0" aria-label="Typing test passage"></div>
-          <div class="controls">
-            <button id="change-sample">Change passage</button>
-            <button id="paste-text">Paste own text</button>
-            <button id="restart" class="primary">Restart</button>
-            <button id="finish" class="warn">Finish</button>
-          </div>
+    <!-- Mode / Config Bar -->
+    <div class="config-bar">
+      <div class="config-group">
+        <span class="config-label">MODE</span>
+        <div class="seg-control" id="mode-seg">
+          <button class="seg active" data-mode="free">Free</button>
+          <button class="seg" data-mode="timed">Timed</button>
+          <button class="seg" data-mode="words">Word Count</button>
+        </div>
+      </div>
+      <div class="config-group" id="time-group">
+        <span class="config-label">TIME</span>
+        <div class="seg-control" id="time-seg">
+          <button class="seg" data-time="15">15s</button>
+          <button class="seg active" data-time="30">30s</button>
+          <button class="seg" data-time="60">60s</button>
+          <button class="seg" data-time="120">120s</button>
+        </div>
+      </div>
+      <div class="config-group" id="words-group" style="display:none">
+        <span class="config-label">WORDS</span>
+        <div class="seg-control" id="words-seg">
+          <button class="seg" data-words="25">25</button>
+          <button class="seg active" data-words="50">50</button>
+          <button class="seg" data-words="100">100</button>
+        </div>
+      </div>
+      <div class="config-group">
+        <span class="config-label">DIFFICULTY</span>
+        <div class="seg-control" id="diff-seg">
+          <button class="seg active" data-diff="easy">Easy</button>
+          <button class="seg" data-diff="medium">Medium</button>
+          <button class="seg" data-diff="hard">Hard</button>
+        </div>
+      </div>
+    </div>
 
-          <div class="input-area">
-            <div class="small">Type here (focus will start the timer automatically)</div>
-            <textarea id="input" aria-label="Typing input" placeholder="Click here and start typing..."></textarea>
+    <!-- Main Grid -->
+    <div class="main-grid">
+      <!-- Left: Passage + Typing -->
+      <section class="panel passage-panel">
+        <div class="panel-label">
+          <span>PASSAGE</span>
+          <div class="passage-actions">
+            <button class="sm-btn" id="change-sample">↺ Change</button>
+            <button class="sm-btn" id="paste-text">⊕ Custom</button>
+          </div>
+        </div>
+
+        <!-- Caret & Passage -->
+        <div class="passage-wrap">
+          <div id="passage" class="passage" tabindex="0" aria-label="Test passage"></div>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-row">
+          <div class="progress-track">
+            <div id="progress-bar" class="progress-fill"></div>
+          </div>
+          <span id="progress-pct" class="progress-pct">0%</span>
+        </div>
+
+        <!-- Input -->
+        <div class="input-wrap">
+          <textarea id="input"
+            placeholder="Click here and start typing…"
+            aria-label="Type here"
+            spellcheck="false"
+            autocorrect="off"
+            autocomplete="off"
+            autocapitalize="off"></textarea>
+          <div class="input-footer">
+            <span id="word-counter" class="word-counter">0 words</span>
+            <div class="action-btns">
+              <button id="restart" class="btn-primary">⟳ Restart</button>
+              <button id="finish" class="btn-warn">✓ Finish</button>
+            </div>
           </div>
         </div>
       </section>
 
-      <aside class="card">
-        <div class="result">
-          <div class="stats">
-            <div class="stat">
-              <div class="small">WPM</div>
-              <div id="wpm" class="big">0</div>
-            </div>
-            <div class="stat">
-              <div class="small">Accuracy</div>
-              <div id="accuracy" class="big">100%</div>
-            </div>
-            <div class="stat">
-              <div class="small">CPM</div>
-              <div id="cpm" class="big">0</div>
-            </div>
-            <div class="stat">
-              <div class="small">Elapsed</div>
-              <div id="elapsed" class="big">00:00</div>
-            </div>
+      <!-- Right: Stats -->
+      <aside class="panel stats-panel">
+        <div class="panel-label">LIVE STATS</div>
+
+        <div class="stat-grid">
+          <div class="stat-card accent">
+            <div class="stat-label">WPM</div>
+            <div id="wpm" class="stat-val">0</div>
+            <div id="wpm-bar-wrap" class="mini-bar-wrap"><div id="wpm-bar" class="mini-bar"></div></div>
           </div>
+          <div class="stat-card success">
+            <div class="stat-label">Accuracy</div>
+            <div id="accuracy" class="stat-val">100%</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">CPM</div>
+            <div id="cpm" class="stat-val">0</div>
+          </div>
+          <div class="stat-card warn">
+            <div class="stat-label">Errors</div>
+            <div id="errors" class="stat-val">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Elapsed</div>
+            <div id="elapsed" class="stat-val">00:00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Raw WPM</div>
+            <div id="raw-wpm" class="stat-val">0</div>
+          </div>
+        </div>
 
-          <div class="small">Progress</div>
-          <div class="progress" aria-hidden="true"><i id="progress-bar"></i></div>
+        <!-- Personal Best -->
+        <div class="pb-card">
+          <div class="pb-title">🏆 Personal Bests</div>
+          <div class="pb-list" id="pb-list">
+            <div class="pb-item"><span>Best WPM</span><span id="pb-wpm">—</span></div>
+            <div class="pb-item"><span>Best Accuracy</span><span id="pb-acc">—</span></div>
+          </div>
+        </div>
 
-          <div class="preview" id="live-preview">Live preview: <span id="preview-text"></span></div>
+        <!-- Session History -->
+        <div class="history-card">
+          <div class="history-title">RECENT RUNS</div>
+          <div id="history-list" class="history-list">
+            <div class="no-history">No runs yet</div>
+          </div>
         </div>
       </aside>
     </div>
 
-    <footer>Tip: Start typing to begin the timer. Press Finish when done.</footer>
+    <footer class="site-footer">
+      <span>TypeForge — Built by <strong>Abhishek Choubey</strong></span>
+      <span>Tip: Ctrl+R to restart · Start typing to begin</span>
+    </footer>
   </div>
 
   <script src="script.js"></script>
